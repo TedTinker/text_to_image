@@ -9,24 +9,24 @@ except:
     from PIL import Image
 import re
 
-from utils import device, plot_image
+from utils import device, plot_image, data_file
 
 train_data = np.loadtxt(
-    "data/images_train.txt", 
+    data_file + "/images_train.txt", 
     dtype = str, 
     comments="!", 
     delimiter = "\n")
 train_data.sort()
 
 test_data = np.loadtxt(
-    "data/images_test.txt", 
+    data_file + "/images_test.txt", 
     dtype = str, 
     comments="!", 
     delimiter = "\n")
 test_data.sort()
 
 text_raw = np.loadtxt(
-    "data/text.txt", 
+    data_file + "/text.txt", 
     dtype = str, 
     comments="!", 
     delimiter = "\n")  
@@ -44,9 +44,9 @@ text = np.vstack(new_texts)
 
 def get_image(label, size = 32):
     try:
-        image = np.array(load_img("data/images/" + label, target_size=(size, size)))/255
+        image = np.array(load_img(data_file + "/images/" + label, target_size=(size, size)))/255
     except:
-        image = np.array(Image.open("data/images/" + label).resize((size, size)))/255
+        image = np.array(Image.open(data_file + "/images/" + label).resize((size, size)))/255
     return(image)
 
 def get_data(batch_size = 64, size = 32, test = False):

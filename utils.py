@@ -13,6 +13,10 @@ else:                       print("\n\nUsing CUDA! :D\n")
 
 
 
+data_file = r"C:\Users\tedjt\Desktop\data"
+
+
+
 from string import ascii_lowercase
 chars = ascii_lowercase + " 1234567890"
 
