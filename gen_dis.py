@@ -27,6 +27,7 @@ class Generator(nn.Module):
         
         self.layers = layers
         self.trans = transitioning
+        self.trans_rate = 1
         
         """
         self.text_in = nn.Sequential(
@@ -101,6 +102,8 @@ class Generator(nn.Module):
         for cnn in self.cnn_list:
             cnn.apply(init_weights).float()
         self.image_out.apply(init_weights).float()
+        if(self.trans):
+            self.bigger_image_out.apply(init_weights).float()
         self.to(device)
         
     def forward(self, text, seed):
@@ -114,12 +117,12 @@ class Generator(nn.Module):
         x = x.reshape(x.shape[0], 128, 2, 2)
         for cnn in self.cnn_list[:-1]:
             x = cnn(x)
-        if(self.trans == False):
+        if(not self.trans):
             x = self.cnn_list[-1](x)
         image = self.image_out(x)
         image = (image + 1) / 2
         image = image.permute(0, 2, 3, 1)
-        if(self.trans != False):
+        if(self.trans):
             x_2 = self.cnn_list[-1](x)
             image_2 = self.bigger_image_out(x_2)
             image_2 = (image_2 + 1) / 2
@@ -127,12 +130,12 @@ class Generator(nn.Module):
             image = image.permute(0, -1, 1, 2)
             image = F.interpolate(image, scale_factor = 2, mode = "bilinear")
             image = image.permute(0, 2, 3, 1)
-            image = image*self.trans + image_2*(1- self.trans)
+            image = image*self.trans_rate + image_2*(1-self.trans_rate)
         return(image)
     
 if __name__ == "__main__":
     print("\n\n\n")
-    layers = 4
+    layers = 2
     gen = Generator(layers = layers, transitioning = True)
     print(gen)
     print()
@@ -140,12 +143,15 @@ if __name__ == "__main__":
     
     
     
+    
 class Discriminator(nn.Module):
     
-    def __init__(self, layers = 1):
+    def __init__(self, layers = 1, transitioning = False):
         super().__init__()
         
         self.layers = layers
+        self.trans = transitioning
+        self.trans_rate = 1
         
         """
         self.text_in = nn.Sequential(
@@ -178,6 +184,19 @@ class Discriminator(nn.Module):
             nn.Dropout(.2)
             )
         
+        if(self.trans):
+            self.bigger_image_in = nn.Sequential(
+                    ConstrainedConv2d(
+                        in_channels = 3, 
+                        out_channels = 128, 
+                        kernel_size = 3,
+                        padding = (1,1),
+                        padding_mode = "reflect"),
+                nn.BatchNorm2d(128),
+                nn.LeakyReLU(),
+                nn.Dropout(.2)
+                )
+        
         self.cnn_list = nn.ModuleList()
         for i in range(layers):
             cnn = nn.Sequential(
@@ -193,7 +212,7 @@ class Discriminator(nn.Module):
                 nn.Dropout(.2))
             self.cnn_list.append(cnn)
             
-        example = torch.zeros(1, 3, 2*(2**layers), 2*(2**layers))
+        example = torch.zeros(1, 3, 2**(layers+1), 2**(layers+1))
         example = self.image_in(example)
         for cnn in self.cnn_list:
             example = cnn(example)
@@ -213,6 +232,8 @@ class Discriminator(nn.Module):
         #self.lstm.apply(init_weights).float()
         #self.lin.apply(init_weights).float()
         self.image_in.apply(init_weights).float()
+        if(self.trans):
+            self.bigger_image_in.apply(init_weights).float()        
         for cnn in self.cnn_list:
             cnn.apply(init_weights).float()
         self.guess.apply(init_weights).float()
@@ -225,9 +246,18 @@ class Discriminator(nn.Module):
         #x = x[:,-1,:]
         #x = self.lin(x)
         image = (image.permute(0, -1, 1, 2) * 2) - 1
-        image = self.image_in(image)
-        for cnn in self.cnn_list:
-            image = cnn(image)
+        if(self.trans):
+            image_2 = self.bigger_image_in(image)
+            image_2 = self.cnn_list[0](image_2)
+            image = F.interpolate(image, scale_factor = .5, mode = "bilinear")
+            image = self.image_in(image)
+            image = image*self.trans_rate + image_2*(1-self.trans_rate)
+            for cnn in self.cnn_list[1:]:
+                image = cnn(image)
+        else:
+            image = self.image_in(image)
+            for cnn in self.cnn_list:
+                image = cnn(image)
         image = image.flatten(1)
         #x = torch.cat([x, image], -1)
         x = (self.guess(image) + 1)/2
@@ -236,7 +266,7 @@ class Discriminator(nn.Module):
 if __name__ == "__main__":
     print("\n\n\n")
     layers = 4
-    dis = Discriminator(layers = layers)
+    dis = Discriminator(layers = layers, transitioning = True)
     print(dis)
     print()
     print(torch_summary(dis, ((1, 1, len(chars)), (1,2*(2**layers), 2*(2**layers),3))))

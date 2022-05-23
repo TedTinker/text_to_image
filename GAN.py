@@ -10,7 +10,12 @@ from gen_dis import Generator, Discriminator, seed_size
 
 class GAN:
     def __init__(self, d = 3):
+        self.d = d
         self.layers = 1
+        self.trans = False
+        self.trans_level = 1
+        self.trans_rate = .01
+        self.non_trans_rate = .01
         self.gen = Generator()
         self.gen_opt = Adam(self.gen.parameters(), .001)
 
@@ -29,19 +34,21 @@ class GAN:
         self.train_fakes_acc =  [[] for _ in range(d)]; self.test_fakes_acc =   [[] for _ in range(d)]
         self.train_reals_acc =  [[] for _ in range(d)]; self.test_reals_acc =   [[] for _ in range(d)]
         
-    def bigger_gen(gen, transitioning = True):
-        if(transitioning):
-            new_gen = Generator(gen.layers+1, 1)
+    def bigger_gen(self):
+        if(self.trans):
+            new_gen = Generator(self.layers, True)
         else:
-            new_gen = Generator(gen.layers, False)
-        return(new_gen)
-    
-    def bigger_dis(dis, transitioning = True):
-        if(transitioning):
-            new_dis = Discriminator(dis.layers+1, 1)
+            new_gen = Generator(self.layers, False)
+        self.gen = new_gen
+        self.gen_opt = Adam(self.gen.parameters(), .001)
+ 
+    def bigger_dis(self):
+        if(self.trans):
+            new_dis = [Discriminator(self.layers, True) for _ in range(self.d)]
         else:
-            new_dis = Discriminator(dis.layers, False)
-        return(new_dis)
+            new_dis = [Discriminator(self.layers, False) for _ in range(self.d)]
+        self.dis = new_dis
+        self.dis_opts = [Adam(dis.parameters(), .001) for dis in self.dis]
         
     def gen_epoch(self, seeds, texts_hot, test = False):
         self.gen.zero_grad()
@@ -92,9 +99,11 @@ class GAN:
                 
     def train(self, epochs = 100, batch_size = 64):
         for e in range(epochs):
-            print("Epoch {}".format(e), end = "... ")
-            _, train_texts, train_images = get_data(batch_size, 2*(2**self.layers), False)
-            _, test_texts,  test_images  = get_data(batch_size, 2*(2**self.layers), True)
+            print("Epoch {}: {}x{} images. Transitioning: {} ({}).".format(
+                e, 2**(self.layers+1), 2**(self.layers+1), 
+                self.trans, round(self.trans_level,2)))
+            _, train_texts, train_images = get_data(batch_size, 2**(self.layers+1), False)
+            _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
             train_texts_hot = texts_to_hot(train_texts)
             test_texts_hot = texts_to_hot(test_texts)
             seeds = torch.zeros((train_texts_hot.shape[0],seed_size)).uniform_(-1, 1).to(device)
@@ -113,7 +122,25 @@ class GAN:
             torch.cuda.synchronize()
             if(e%10 == 0):
                 self.display()
-            
+            if(self.trans): 
+                self.trans_level -= self.trans_rate 
+                if(self.trans_level <= 0):
+                    self.trans = False
+                    self.trans_level = 1
+                    self.bigger_gen()
+                    self.bigger_dis()
+            else:
+                self.trans_level -= self.non_trans_rate
+                if(self.trans_level <= 0):
+                    self.trans = True
+                    self.layers += 1
+                    self.trans_level = 1
+                    self.bigger_gen()
+                    self.bigger_dis()
+            if(self.layers >= 256):
+                break
+
+                    
             
             
 
@@ -126,6 +153,7 @@ class GAN:
             plot_acc(d,
                 self.train_fakes_acc[d], self.train_reals_acc[d], 
                 self.test_fakes_acc[d],  self.test_reals_acc[d])
+        print(self.display_texts)
         plot_images(
             [get_image(l, 2*(2**self.layers)) for l in self.display_labels], 3, 3)
         plot_images(self.gen(
