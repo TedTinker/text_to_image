@@ -94,13 +94,13 @@ class Generator(nn.Module):
                     nn.Tanh()
                 )
         
-        #self.text_in.apply(init_weights)
-        #self.lstm.apply(init_weights)
-        self.seed_in.apply(init_weights)
-        self.lin.apply(init_weights)
+        #self.text_in.apply(init_weights).float()
+        #self.lstm.apply(init_weights).float()
+        self.seed_in.apply(init_weights).float()
+        self.lin.apply(init_weights).float()
         for cnn in self.cnn_list:
-            cnn.apply(init_weights)
-        self.image_out.apply(init_weights)
+            cnn.apply(init_weights).float()
+        self.image_out.apply(init_weights).float()
         self.to(device)
         
     def forward(self, text, seed):
@@ -169,11 +169,11 @@ class Discriminator(nn.Module):
         self.image_in = nn.Sequential(
             ConstrainedConv2d(
                 in_channels = 3,
-                out_channels = 64, 
+                out_channels = 128, 
                 kernel_size = 3,
                 padding = (1,1),
                 padding_mode = "reflect"),
-            nn.BatchNorm2d(64),
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             nn.Dropout(.2)
             )
@@ -182,13 +182,13 @@ class Discriminator(nn.Module):
         for i in range(layers):
             cnn = nn.Sequential(
                 ConstrainedConv2d(
-                    in_channels = 64,
-                    out_channels = 64, 
+                    in_channels = 128,
+                    out_channels = 128, 
                     kernel_size = 3,
                     stride = 2,
                     padding = (1,1),
                     padding_mode = "reflect"),
-                nn.BatchNorm2d(64),
+                nn.BatchNorm2d(128),
                 nn.LeakyReLU(),
                 nn.Dropout(.2))
             self.cnn_list.append(cnn)
@@ -201,21 +201,21 @@ class Discriminator(nn.Module):
         quantity = example.shape[1]
                     
         self.guess = nn.Sequential(
-                    nn.Linear(quantity, 256),
-                    nn.BatchNorm1d(256),
+                    nn.Linear(quantity, 512),
+                    nn.BatchNorm1d(512),
                     nn.LeakyReLU(),
                     nn.Dropout(.2),
-                    nn.Linear(256, 1),
+                    nn.Linear(512, 1),
                     nn.BatchNorm1d(1),
                     nn.Tanh())
         
-        #self.text_in.apply(init_weights)
-        #self.lstm.apply(init_weights)
-        #self.lin.apply(init_weights)
-        self.image_in.apply(init_weights)
+        #self.text_in.apply(init_weights).float()
+        #self.lstm.apply(init_weights).float()
+        #self.lin.apply(init_weights).float()
+        self.image_in.apply(init_weights).float()
         for cnn in self.cnn_list:
-            cnn.apply(init_weights)
-        self.guess.apply(init_weights)
+            cnn.apply(init_weights).float()
+        self.guess.apply(init_weights).float()
         self.to(device)
         
     def forward(self, text, image):

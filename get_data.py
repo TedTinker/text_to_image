@@ -3,7 +3,10 @@ import torch
 import numpy as np
 import string
 from random import sample, choice
-from keras.preprocessing.image import load_img
+try:
+    from keras.preprocessing.image import load_img
+except:
+    from PIL import Image
 import re
 
 from utils import device, plot_image
@@ -40,8 +43,11 @@ new_texts.sort(key=lambda t: t[0])
 text = np.vstack(new_texts)
 
 def get_image(label, size = 32):
-    image = np.array(load_img("data/images/" + label, target_size=(size, size)))
-    return(image/255)
+    try:
+        image = np.array(load_img("data/images/" + label, target_size=(size, size)))/255
+    except:
+        image = np.array(Image.open("data/images/" + label).resize((size, size)))/255
+    return(image)
 
 def get_data(batch_size = 64, size = 32, test = False):
     if(test): data = test_data 

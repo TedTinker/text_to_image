@@ -65,6 +65,7 @@ def plot_acc(d, train_fakes_acc, train_reals_acc, test_fakes_acc, test_reals_acc
     plt.close()
     
 def plot_image(image):
+    image = image.cpu().detach()
     plt.imshow(image)
     plt.axis("off")
     plt.show()
