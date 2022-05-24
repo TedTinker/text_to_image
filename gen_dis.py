@@ -27,9 +27,7 @@ class Generator(nn.Module):
         
         self.layers = layers
         self.trans = transitioning
-        self.trans_rate = 1
         
-        """
         self.text_in = nn.Sequential(
             nn.Linear(len(chars), 128),
             nn.LeakyReLU()
@@ -40,7 +38,6 @@ class Generator(nn.Module):
             hidden_size = 256,
             batch_first = True
             )
-        """
         
         self.seed_in = nn.Sequential(
             nn.Linear(seed_size, 512),
@@ -95,8 +92,8 @@ class Generator(nn.Module):
                     nn.Tanh()
                 )
         
-        #self.text_in.apply(init_weights).float()
-        #self.lstm.apply(init_weights).float()
+        self.text_in.apply(init_weights).float()
+        self.lstm.apply(init_weights).float()
         self.seed_in.apply(init_weights).float()
         self.lin.apply(init_weights).float()
         for cnn in self.cnn_list:
@@ -106,13 +103,13 @@ class Generator(nn.Module):
             self.bigger_image_out.apply(init_weights).float()
         self.to(device)
         
-    def forward(self, text, seed):
-        #x = self.text_in(text)
-        #self.lstm.flatten_parameters()
-        #x, _ = self.lstm(x)
-        #x = x[:,-1,:]
+    def forward(self, text, seed, trans_level):
+        x = self.text_in(text)
+        self.lstm.flatten_parameters()
+        x, _ = self.lstm(x)
+        x = x[:,-1,:]
         seed = self.seed_in(seed)
-        #x = torch.cat([x, seed],-1)
+        x = torch.cat([x, seed],-1)
         x = self.lin(seed)
         x = x.reshape(x.shape[0], 128, 2, 2)
         for cnn in self.cnn_list[:-1]:
@@ -130,7 +127,7 @@ class Generator(nn.Module):
             image = image.permute(0, -1, 1, 2)
             image = F.interpolate(image, scale_factor = 2, mode = "bilinear")
             image = image.permute(0, 2, 3, 1)
-            image = image*self.trans_rate + image_2*(1-self.trans_rate)
+            image = image*trans_level + image_2*(1-trans_level)
         return(image)
     
 if __name__ == "__main__":
@@ -139,7 +136,10 @@ if __name__ == "__main__":
     gen = Generator(layers = layers, transitioning = True)
     print(gen)
     print()
-    print(torch_summary(gen, ((1, 1, len(chars)), (1, seed_size))))
+    print(torch_summary(gen, (
+        (1, 1, len(chars)), 
+        (1, seed_size),
+        (1,1))))
     
     
     
@@ -151,9 +151,7 @@ class Discriminator(nn.Module):
         
         self.layers = layers
         self.trans = transitioning
-        self.trans_rate = 1
         
-        """
         self.text_in = nn.Sequential(
             nn.Linear(len(chars), 128),
             nn.LeakyReLU()
@@ -170,7 +168,6 @@ class Discriminator(nn.Module):
             nn.Linear(256, 128),
             nn.LeakyReLU()
             )
-        """
                 
         self.image_in = nn.Sequential(
             ConstrainedConv2d(
@@ -228,9 +225,9 @@ class Discriminator(nn.Module):
                     nn.BatchNorm1d(1),
                     nn.Tanh())
         
-        #self.text_in.apply(init_weights).float()
-        #self.lstm.apply(init_weights).float()
-        #self.lin.apply(init_weights).float()
+        self.text_in.apply(init_weights).float()
+        self.lstm.apply(init_weights).float()
+        self.lin.apply(init_weights).float()
         self.image_in.apply(init_weights).float()
         if(self.trans):
             self.bigger_image_in.apply(init_weights).float()        
@@ -239,19 +236,19 @@ class Discriminator(nn.Module):
         self.guess.apply(init_weights).float()
         self.to(device)
         
-    def forward(self, text, image):
-        #x = self.text_in(text)
-        #self.lstm.flatten_parameters()
-        #x, _ = self.lstm(x)
-        #x = x[:,-1,:]
-        #x = self.lin(x)
+    def forward(self, text, image, trans_level):
+        x = self.text_in(text)
+        self.lstm.flatten_parameters()
+        x, _ = self.lstm(x)
+        x = x[:,-1,:]
+        x = self.lin(x)
         image = (image.permute(0, -1, 1, 2) * 2) - 1
         if(self.trans):
             image_2 = self.bigger_image_in(image)
             image_2 = self.cnn_list[0](image_2)
             image = F.interpolate(image, scale_factor = .5, mode = "bilinear")
             image = self.image_in(image)
-            image = image*self.trans_rate + image_2*(1-self.trans_rate)
+            image = image*trans_level + image_2*(1-trans_level)
             for cnn in self.cnn_list[1:]:
                 image = cnn(image)
         else:
@@ -259,7 +256,7 @@ class Discriminator(nn.Module):
             for cnn in self.cnn_list:
                 image = cnn(image)
         image = image.flatten(1)
-        #x = torch.cat([x, image], -1)
+        x = torch.cat([x, image], -1)
         x = (self.guess(image) + 1)/2
         return(x)
     
@@ -269,7 +266,10 @@ if __name__ == "__main__":
     dis = Discriminator(layers = layers, transitioning = True)
     print(dis)
     print()
-    print(torch_summary(dis, ((1, 1, len(chars)), (1,2*(2**layers), 2*(2**layers),3))))
+    print(torch_summary(dis, (
+        (1, 1, len(chars)), 
+        (1,2*(2**layers), 2*(2**layers),3),
+        (1,1))))
     
     
 
