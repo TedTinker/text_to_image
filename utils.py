@@ -49,7 +49,10 @@ def texts_to_hot(texts):
 
 
 
-def plot_losses(train_losses, test_losses, title):
+def plot_losses(changes, train_losses, test_losses, title):
+    for i, c in enumerate(changes):
+        if(c):
+            plt.axvline(x=i, color = (0,0,0,.4), linestyle='dashed')
     plt.plot(train_losses, label = "training")
     plt.plot(test_losses, label = "testing")
     plt.legend(loc = 'upper left')
@@ -57,7 +60,10 @@ def plot_losses(train_losses, test_losses, title):
     plt.show()
     plt.close()
     
-def plot_acc(d, train_fakes_acc, train_reals_acc, test_fakes_acc, test_reals_acc):
+def plot_acc(changes, d, train_fakes_acc, train_reals_acc, test_fakes_acc, test_reals_acc):
+    for i, c in enumerate(changes):
+        if(c):
+            plt.axvline(x=i, color = (0,0,0,.4), linestyle='dashed')
     plt.plot(train_fakes_acc, label = "train fake acc", color = "red")
     plt.plot(test_fakes_acc,  label = "test fake acc",  color = "pink")
     plt.plot(train_reals_acc, label = "train real acc", color = "blue")
