@@ -65,4 +65,4 @@ if __name__ == "__main__":
     for l, t, i in zip(labels, texts, images):
         print()
         print("{}: {}".format(l, t))
-        plot_image(i)
+        plot_image(i) 
