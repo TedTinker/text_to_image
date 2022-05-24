@@ -14,8 +14,10 @@ class GAN:
         self.layers = 1
         self.trans = False
         self.trans_level = 1
-        self.trans_rate = .01
-        self.non_trans_rate = .01
+        self.trans_rate = .05
+        self.non_trans_rate = .05
+        self.changes = []
+        
         self.gen = Generator()
         self.gen_opt = Adam(self.gen.parameters(), .001)
 
@@ -35,30 +37,50 @@ class GAN:
         self.train_reals_acc =  [[] for _ in range(d)]; self.test_reals_acc =   [[] for _ in range(d)]
         
     def bigger_gen(self):
+        old_state_dict = self.gen.state_dict()
+        old_keys = old_state_dict.keys()
         if(self.trans):
             new_gen = Generator(self.layers, True)
         else:
             new_gen = Generator(self.layers, False)
+        new_state_dict = new_gen.state_dict()
+        for key in new_state_dict.keys():
+            if key in old_keys:
+                new_state_dict[key] = old_state_dict[key]
+        new_gen.load_state_dict(new_state_dict)
         self.gen = new_gen
         self.gen_opt = Adam(self.gen.parameters(), .001)
+        
+    def bigger_dises(self):
+        for d in range(self.d):
+            new_dis, new_opts = self.bigger_dis(self.dis[d])
+            self.dis[d] = new_dis 
+            self.dis_opts[d] = new_opts
  
-    def bigger_dis(self):
+    def bigger_dis(self, dis):
+        old_state_dict = dis.state_dict()
+        old_keys = old_state_dict.keys()
         if(self.trans):
-            new_dis = [Discriminator(self.layers, True) for _ in range(self.d)]
+            new_dis = Discriminator(self.layers, True)
         else:
-            new_dis = [Discriminator(self.layers, False) for _ in range(self.d)]
-        self.dis = new_dis
-        self.dis_opts = [Adam(dis.parameters(), .001) for dis in self.dis]
+            new_dis = Discriminator(self.layers, False)
+        new_state_dict = new_dis.state_dict()
+        for key in new_state_dict.keys():
+            if key in old_keys:
+                new_state_dict[key] = old_state_dict[key]
+        new_dis.load_state_dict(new_state_dict)
+        dis_opts = Adam(new_dis.parameters(), .001)
+        return(new_dis, dis_opts)
         
     def gen_epoch(self, seeds, texts_hot, test = False):
         self.gen.zero_grad()
         if(test): self.gen.eval()
         else:     self.gen.train()
-        gen_images = self.gen(texts_hot, seeds)
+        gen_images = self.gen(texts_hot, seeds, self.trans_level)
         judgements = []
         for dis in self.dis:
             dis.eval()
-            judgements.append(dis(texts_hot, gen_images))
+            judgements.append(dis(texts_hot, gen_images, self.trans_level))
         judgements = torch.cat(judgements, 1)
         loss = self.bce(judgements, torch.ones(judgements.shape).to(device))
         if(not test):
@@ -74,11 +96,11 @@ class GAN:
         if(test): self.gen.eval();  dis.eval()
         else:     self.gen.train(); dis.train()
         with torch.no_grad():
-            gen_images = self.gen(texts_hot, seeds)
+            gen_images = self.gen(texts_hot, seeds, self.trans_level)
         texts_hot = torch.cat([texts_hot]*2, 0)
         images = torch.cat([images, gen_images], 0)
         noisy_images = images + noise
-        judgement = dis(texts_hot, noisy_images)
+        judgement = dis(texts_hot, noisy_images, self.trans_level)
         loss = self.bce(judgement, noisy_correct)
         fakes_correct = [1 if round(judgement[i].item()) == round(correct[i].item()) else 0 for i in range(len(judgement)) if round(correct[i].item()) == 1]
         reals_correct = [1 if round(judgement[i].item()) == round(correct[i].item()) else 0 for i in range(len(judgement)) if round(correct[i].item()) == 0]        
@@ -99,6 +121,8 @@ class GAN:
                 
     def train(self, epochs = 100, batch_size = 64):
         for e in range(epochs):
+            if(e%10 == 0 or e == 0):
+                self.display()
             print("Epoch {}: {}x{} images. Transitioning: {} ({}).".format(
                 e, 2**(self.layers+1), 2**(self.layers+1), 
                 self.trans, round(self.trans_level,2)))
@@ -109,7 +133,7 @@ class GAN:
             seeds = torch.zeros((train_texts_hot.shape[0],seed_size)).uniform_(-1, 1).to(device)
             correct = torch.cat([
                 .9*torch.ones((batch_size,1)),
-                torch.zeros((batch_size,1))]).to(device)
+                .1*torch.ones((batch_size,1))]).to(device)
             noisy_correct = correct; noisy_correct[0] = .1; noisy_correct[-1] = .9
             noise = torch.normal(
                 torch.zeros((train_images.shape[0]*2,) + train_images.shape[1:]), 
@@ -117,40 +141,44 @@ class GAN:
             self.gen_epoch(seeds, train_texts_hot, test = False)
             self.gen_epoch(seeds, test_texts_hot,  test = True)
             for d in range(len(self.dis)):
-                self.dis_epoch(seeds, d, train_texts_hot, train_images, noise, correct, noisy_correct, test = False)
-                self.dis_epoch(seeds, d, test_texts_hot,  test_images,  noise, correct, noisy_correct, test = True)
+                self.dis_epoch(seeds, d, train_texts_hot, train_images, 
+                               noise, correct, noisy_correct, test = False)
+                self.dis_epoch(seeds, d, test_texts_hot,  test_images,  
+                               noise, correct, noisy_correct, test = True)
             torch.cuda.synchronize()
-            if(e%10 == 0):
-                self.display()
             if(self.trans): 
                 self.trans_level -= self.trans_rate 
                 if(self.trans_level <= 0):
+                    self.changes.append(True)
                     self.trans = False
                     self.trans_level = 1
                     self.bigger_gen()
-                    self.bigger_dis()
+                    self.bigger_dises()
+                else:
+                    self.changes.append(False)
             else:
                 self.trans_level -= self.non_trans_rate
                 if(self.trans_level <= 0):
+                    self.changes.append(True)
                     self.trans = True
                     self.layers += 1
                     self.trans_level = 1
                     self.bigger_gen()
-                    self.bigger_dis()
+                    self.bigger_dises()
+                else:
+                    self.changes.append(False)
             if(self.layers >= 256):
                 break
 
-                    
-            
-            
+
 
     def display(self):
-        plot_losses(self.gen_train_losses, self.gen_test_losses, "Generator Losses")
+        plot_losses(self.changes,self.gen_train_losses, self.gen_test_losses, "Generator Losses")
         for d in range(len(self.dis)):
-            plot_losses(
+            plot_losses(self.changes,
                 self.dis_train_losses[d], self.dis_test_losses[d], 
                 "Discriminator {} Losses".format(d))
-            plot_acc(d,
+            plot_acc(self.changes, d,
                 self.train_fakes_acc[d], self.train_reals_acc[d], 
                 self.test_fakes_acc[d],  self.test_reals_acc[d])
         print(self.display_texts)
@@ -158,5 +186,5 @@ class GAN:
             [get_image(l, 2*(2**self.layers)) for l in self.display_labels], 3, 3)
         plot_images(self.gen(
             texts_to_hot(self.display_texts), 
-            self.display_seeds).cpu().detach(), 3, 3)
+            self.display_seeds, self.trans_level).cpu().detach(), 3, 3)
         print()
