@@ -67,7 +67,7 @@ class Generator(nn.Module):
                     padding_mode = "reflect"),
                 nn.BatchNorm2d(128),
                 nn.LeakyReLU(),
-                nn.Upsample(scale_factor = 2, mode = "bilinear"))
+                nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True))
             self.cnn_list.append(cnn)
             
         self.image_out = nn.Sequential(
@@ -126,7 +126,7 @@ class Generator(nn.Module):
             image_2 = (image_2 + 1) / 2
             image_2 = image_2.permute(0, 2, 3, 1)
             image = image.permute(0, -1, 1, 2)
-            image = F.interpolate(image, scale_factor = 2, mode = "bilinear")
+            image = F.interpolate(image, scale_factor = 2, mode = "bilinear", align_corners = True)
             image = image.permute(0, 2, 3, 1)
             image = image*trans_level + image_2*(1-trans_level)
         return(image)
@@ -247,7 +247,7 @@ class Discriminator(nn.Module):
         if(self.trans):
             image_2 = self.bigger_image_in(image)
             image_2 = self.cnn_list[0](image_2)
-            image = F.interpolate(image, scale_factor = .5, mode = "bilinear")
+            image = F.interpolate(image, scale_factor = .5, mode = "bilinear", align_corners = True)
             image = self.image_in(image)
             image = image*trans_level + image_2*(1-trans_level)
             for cnn in self.cnn_list[1:]:
