@@ -92,7 +92,7 @@ class GAN:
         else:
             self.gen_test_losses.append(loss.cpu().detach())
             
-    def dis_epoch(self, seeds, d, texts_hot, images, noise, correct, noisy_correct, test = False):
+    def dis_epoch(self, d, seeds, texts_hot, images, noise, correct, noisy_correct, test = False):
         dis = self.dis[d]
         dis.zero_grad()
         if(test): self.gen.eval();  dis.eval()
@@ -123,11 +123,14 @@ class GAN:
                 
     def train(self, epochs = 100, batch_size = 64):
         for e in range(epochs):
+            
             if(e%10 == 0 or e == 0):
                 self.display()
+                
             print("Epoch {}: {}x{} images. Transitioning: {} ({}).".format(
                 e, 2**(self.layers+1), 2**(self.layers+1), 
                 self.trans, round(self.trans_level,2)))
+            
             _, train_texts, train_images = get_data(batch_size, 2**(self.layers+1), False)
             _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
             train_texts_hot = texts_to_hot(train_texts)
@@ -140,14 +143,16 @@ class GAN:
             noise = torch.normal(
                 torch.zeros((train_images.shape[0]*2,) + train_images.shape[1:]), 
                 .05*torch.ones((train_images.shape[0]*2,) + train_images.shape[1:])).to(device)
+            
             self.gen_epoch(seeds, train_texts_hot, test = False)
             self.gen_epoch(seeds, test_texts_hot,  test = True)
             for d in range(len(self.dis)):
-                self.dis_epoch(seeds, d, train_texts_hot, train_images, 
+                self.dis_epoch(d, seeds, train_texts_hot, train_images, 
                                noise, correct, noisy_correct, test = False)
-                self.dis_epoch(seeds, d, test_texts_hot,  test_images,  
+                self.dis_epoch(d, seeds, test_texts_hot,  test_images,  
                                noise, correct, noisy_correct, test = True)
             torch.cuda.synchronize()
+            
             if(self.trans): 
                 self.trans_level -= self.trans_rate 
                 if(self.trans_level <= 0):
