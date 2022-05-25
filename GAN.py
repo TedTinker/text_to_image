@@ -37,7 +37,8 @@ class GAN:
         
     def get_seeds(self, batch_size):
         return(torch.normal(0, 1, size = (batch_size, seed_size))).to(device)
-        
+    
+    # Also, freeze old layers!
     def bigger_gen(self):
         old_state_dict = self.gen.state_dict()
         old_keys = old_state_dict.keys()
@@ -92,7 +93,7 @@ class GAN:
         else:
             self.gen_test_losses.append(loss.cpu().detach())
             
-    def dis_epoch(self, d, seeds, texts_hot, images, noise, correct, noisy_correct, test = False):
+    def dis_epoch(self, d, seeds, texts_hot, images, noise, correct, noisy_correct, dis_false_batch, test = False):
         dis = self.dis[d]
         dis.zero_grad()
         if(test): self.gen.eval();  dis.eval()
@@ -122,6 +123,7 @@ class GAN:
             
                 
     def train(self, epochs = 100, batch_size = 64):
+        dis_false_batch = False
         for e in range(epochs):
             
             if(e%10 == 0 or e == 0):
@@ -148,11 +150,13 @@ class GAN:
             
             self.gen_epoch(train_seeds, train_texts_hot, test = False)
             self.gen_epoch(test_seeds,  test_texts_hot,  test = True)
+            
             for d in range(len(self.dis)):
                 self.dis_epoch(d, train_seeds, train_texts_hot, train_images, 
-                               noise, correct, noisy_correct, test = False)
+                               noise, correct, noisy_correct, dis_false_batch, test = False)
                 self.dis_epoch(d, test_seeds,  test_texts_hot,  test_images,  
-                               noise, correct, noisy_correct, test = True)
+                               noise, correct, noisy_correct, dis_false_batch, test = True)
+            dis_false_batch = not dis_false_batch
             torch.cuda.synchronize()
             
             if(self.trans): 
