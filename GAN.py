@@ -14,8 +14,8 @@ class GAN:
         self.layers = 1
         self.trans = False
         self.trans_level = 1
-        self.trans_rate = .05
-        self.non_trans_rate = .05
+        self.trans_rate = .01
+        self.non_trans_rate = .01
         self.changes = []
         
         self.gen = Generator()
@@ -28,13 +28,15 @@ class GAN:
         
         self.display_labels, self.display_texts, _ = \
             get_data(9, 256, test = True)
-        self.display_seeds = \
-            torch.zeros((9,seed_size)).uniform_(-1, 1).to(device)
+        self.display_seeds = self.get_seeds(9)
         
         self.gen_train_losses = []; self.gen_test_losses  = []
         self.dis_train_losses = [[] for _ in range(d)]; self.dis_test_losses  = [[] for _ in range(d)]
         self.train_fakes_acc =  [[] for _ in range(d)]; self.test_fakes_acc =   [[] for _ in range(d)]
         self.train_reals_acc =  [[] for _ in range(d)]; self.test_reals_acc =   [[] for _ in range(d)]
+        
+    def get_seeds(self, batch_size):
+        return(torch.normal(0, 1, size = (batch_size, seed_size))).to(device)
         
     def bigger_gen(self):
         old_state_dict = self.gen.state_dict()
@@ -130,7 +132,7 @@ class GAN:
             _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
             train_texts_hot = texts_to_hot(train_texts)
             test_texts_hot = texts_to_hot(test_texts)
-            seeds = torch.zeros((train_texts_hot.shape[0],seed_size)).uniform_(-1, 1).to(device)
+            seeds = self.get_seeds(batch_size)
             correct = torch.cat([
                 .9*torch.ones((batch_size,1)),
                 .1*torch.ones((batch_size,1))]).to(device)
