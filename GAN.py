@@ -11,6 +11,7 @@ from gen_dis import Generator, Discriminator, seed_size
 class GAN:
     def __init__(self, d = 3):
         self.d = d
+        self.lr = .0002
         self.layers = 1
         self.trans = False
         self.trans_level = 1
@@ -19,10 +20,10 @@ class GAN:
         self.changes = []
         
         self.gen = Generator()
-        self.gen_opt = Adam(self.gen.parameters(), .001)
+        self.gen_opt = Adam(self.gen.parameters(), self.lr)
 
         self.dis = [Discriminator() for _ in range(d)]
-        self.dis_opts = [Adam(dis.parameters(), .001) for dis in self.dis]
+        self.dis_opts = [Adam(dis.parameters(), self.lr) for dis in self.dis]
         
         self.bce = nn.BCELoss()
         
@@ -52,7 +53,7 @@ class GAN:
                 new_state_dict[key] = old_state_dict[key]
         new_gen.load_state_dict(new_state_dict)
         self.gen = new_gen
-        self.gen_opt = Adam(self.gen.parameters(), .001)
+        self.gen_opt = Adam(self.gen.parameters(), self.lr)
         
     def bigger_dises(self):
         for d in range(self.d):
@@ -72,7 +73,7 @@ class GAN:
             if key in old_keys:
                 new_state_dict[key] = old_state_dict[key]
         new_dis.load_state_dict(new_state_dict)
-        dis_opts = Adam(new_dis.parameters(), .001)
+        dis_opts = Adam(new_dis.parameters(), self.lr)
         return(new_dis, dis_opts)
         
     def gen_epoch(self, seeds, texts_hot, test = False):
@@ -164,22 +165,30 @@ class GAN:
             if(self.trans): 
                 self.trans_level -= self.trans_rate 
                 if(self.trans_level <= 0):
+                    print("\n\nEnd of transitioning:")
+                    self.just_pics_display()
                     self.changes.append(True)
                     self.trans = False
                     self.trans_level = 1
                     self.bigger_gen()
                     self.bigger_dises()
+                    print("Begin not transitioning:")
+                    self.just_pics_display()
                 else:
                     self.changes.append(False)
             else:
                 self.trans_level -= self.non_trans_rate
                 if(self.trans_level <= 0):
+                    print("\n\nEnd of not transitioning:")
+                    self.just_pics_display()
                     self.changes.append(True)
                     self.trans = True
                     self.layers += 1
                     self.trans_level = 1
                     self.bigger_gen()
                     self.bigger_dises()
+                    print("Begin transitioning:")
+                    self.just_pics_display()
                 else:
                     self.changes.append(False)
             if(self.layers >= 256):
@@ -203,3 +212,10 @@ class GAN:
             texts_to_hot(self.display_texts), 
             self.display_seeds, self.trans_level).cpu().detach(), 3, 3)
         print()
+        
+    def just_pics_display(self):
+        plot_images(self.gen(
+            texts_to_hot(self.display_texts), 
+            self.display_seeds, self.trans_level).cpu().detach(), 3, 3)
+        print()
+

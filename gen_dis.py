@@ -126,7 +126,7 @@ class Generator(nn.Module):
             image_2 = (image_2 + 1) / 2
             image_2 = image_2.permute(0, 2, 3, 1)
             image = image.permute(0, -1, 1, 2)
-            image = F.interpolate(image, scale_factor = 2, mode = "bilinear", align_corners = True)
+            image = F.interpolate(image, scale_factor = 2, mode = "nearest") #mode = "bilinear", align_corners = True)
             image = image.permute(0, 2, 3, 1)
             image = image*trans_level + image_2*(1-trans_level)
         return(image)
