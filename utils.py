@@ -13,8 +13,8 @@ else:                       print("\n\nUsing CUDA! :D\n")
 
 
 
-data_file = r"C:\Users\tedjt\Desktop\data"
-#data_file = "/home/ted/Desktop/data"
+#data_file = r"C:\Users\tedjt\Desktop\data"
+data_file = "/home/ted/Desktop/data"
 
 
 from string import ascii_lowercase
@@ -65,8 +65,8 @@ def plot_acc(changes, d, train_fakes_acc, train_reals_acc, test_fakes_acc, test_
         if(c):
             plt.axvline(x=i, color = (0,0,0,.4), linestyle='dashed')
     plt.plot(train_fakes_acc, label = "train fake acc", color = "red")
-    plt.plot(train_reals_acc, label = "train real acc", color = "blue")
     plt.plot(test_fakes_acc,  label = "test  fake acc", color = "pink")
+    plt.plot(train_reals_acc, label = "train real acc", color = "blue")
     plt.plot(test_reals_acc,  label = "test  real acc", color = "dodgerblue")
     plt.ylim([0,1])
     plt.legend(loc = 'upper left')

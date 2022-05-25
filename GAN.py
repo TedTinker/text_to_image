@@ -1,8 +1,9 @@
 import torch
 from torch import nn
 from torch.optim import Adam
+import torch.nn.functional as F
 
-from random import shuffle
+import numpy as np
 
 from utils import device, plot_losses, plot_images, plot_acc, texts_to_hot
 from get_data import get_data, get_image
@@ -206,8 +207,14 @@ class GAN:
                 self.train_fakes_acc[d], self.train_reals_acc[d], 
                 self.test_fakes_acc[d],  self.test_reals_acc[d])
         print(self.display_texts)
+        display_images = [get_image(l, 2**(self.layers+1)) for l in self.display_labels]
+        if(self.trans):
+            prev_images = torch.cat([torch.tensor(get_image(l, 2**self.layers)).unsqueeze(0).permute(0,-1,1,2) for l in self.display_labels])
+            prev_images = F.interpolate(prev_images, scale_factor = 2, mode = "nearest").permute(0,2,3,1)
+            display_images = [prev*self.trans_level + display*(1-self.trans_level) for \
+                prev, display in zip(prev_images, display_images)]
         plot_images(
-            [get_image(l, 2*(2**self.layers)) for l in self.display_labels], 3, 3)
+            display_images, 3, 3)
         plot_images(self.gen(
             texts_to_hot(self.display_texts), 
             self.display_seeds, self.trans_level).cpu().detach(), 3, 3)
