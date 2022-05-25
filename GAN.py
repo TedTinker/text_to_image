@@ -114,6 +114,7 @@ class GAN:
             
             
                 
+    # Get "minibatched" working!
     def train(self, epochs = 100, batch_size = 64):
         dis_batch = True
         for e in range(epochs):
