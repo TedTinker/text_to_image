@@ -8,7 +8,6 @@ import numpy as np
 from utils import device, plot_losses, plot_images, plot_acc, texts_to_hot
 from get_data import get_data, get_image
 from gen_dis import Generator, Discriminator, seed_size
-from testing_trans import replace_paras
 
 class GAN:
     def __init__(self, d = 3):
