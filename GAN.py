@@ -93,7 +93,7 @@ class GAN:
         else:
             self.gen_test_losses.append(loss.cpu().detach())
             
-    def dis_epoch(self, d, seeds, texts_hot, images, noise, correct, noisy_correct, dis_false_batch, test = False):
+    def dis_epoch(self, d, seeds, texts_hot, images, noise, real_correct, fake_correct, dis_false_batch, test = False):
         dis = self.dis[d]
         dis.zero_grad()
         if(test): self.gen.eval();  dis.eval()
@@ -104,21 +104,22 @@ class GAN:
         images = torch.cat([images, gen_images], 0)
         noisy_images = images + noise
         judgement = dis(texts_hot, noisy_images, self.trans_level)
-        loss = self.bce(judgement, noisy_correct)
-        fakes_correct = [1 if round(judgement[i].item()) == round(correct[i].item()) else 0 for i in range(len(judgement)) if round(correct[i].item()) == 1]
-        reals_correct = [1 if round(judgement[i].item()) == round(correct[i].item()) else 0 for i in range(len(judgement)) if round(correct[i].item()) == 0]        
-        fakes_accuracy = sum(fakes_correct)/len(fakes_correct)
+        correct = torch.cat([real_correct, fake_correct])
+        loss = self.bce(judgement, correct)
+        reals_correct = [1 if round(judgement[i].item()) == round(correct[i].item()) else 0 for i in range(len(judgement)) if round(correct[i].item()) == 1]        
+        fakes_correct = [1 if round(judgement[i].item()) == round(correct[i].item()) else 0 for i in range(len(judgement)) if round(correct[i].item()) == 0]
         reals_accuracy = sum(reals_correct)/len(reals_correct)
+        fakes_accuracy = sum(fakes_correct)/len(fakes_correct)
         if(not test):
             loss.backward()
             self.dis_opts[d].step()
             self.dis_train_losses[d].append(loss.cpu().detach())
-            self.train_fakes_acc[d].append(fakes_accuracy)
             self.train_reals_acc[d].append(reals_accuracy)
+            self.train_fakes_acc[d].append(fakes_accuracy)
         else:
             self.dis_test_losses[d].append(loss.cpu().detach())
-            self.test_fakes_acc[d].append(fakes_accuracy)
             self.test_reals_acc[d].append(reals_accuracy)
+            self.test_fakes_acc[d].append(fakes_accuracy)
             
             
                 
@@ -139,11 +140,8 @@ class GAN:
             test_texts_hot  = texts_to_hot(test_texts)
             train_seeds = self.get_seeds(batch_size)
             test_seeds  = self.get_seeds(batch_size)
-
-            correct = torch.cat([
-                .9*torch.ones((batch_size,1)),
-                .1*torch.ones((batch_size,1))]).to(device)
-            noisy_correct = correct; noisy_correct[0] = .1; noisy_correct[-1] = .9
+            real_correct = .9*torch.ones((batch_size,1)).to(device)
+            fake_correct = torch.zeros(  (batch_size,1)).to(device)
             noise = torch.normal(
                 torch.zeros((train_images.shape[0]*2,) + train_images.shape[1:]), 
                 .05*torch.ones((train_images.shape[0]*2,) + train_images.shape[1:])).to(device)
@@ -153,9 +151,9 @@ class GAN:
             
             for d in range(len(self.dis)):
                 self.dis_epoch(d, train_seeds, train_texts_hot, train_images, 
-                               noise, correct, noisy_correct, dis_false_batch, test = False)
+                               noise, real_correct, fake_correct, dis_false_batch, test = False)
                 self.dis_epoch(d, test_seeds,  test_texts_hot,  test_images,  
-                               noise, correct, noisy_correct, dis_false_batch, test = True)
+                               noise, real_correct, fake_correct, dis_false_batch, test = True)
             dis_false_batch = not dis_false_batch
             torch.cuda.synchronize()
             
