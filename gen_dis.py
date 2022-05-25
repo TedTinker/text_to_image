@@ -81,18 +81,6 @@ class Generator(nn.Module):
                 nn.Tanh()
             )
         
-        if(self.trans):
-            self.bigger_image_out = nn.Sequential(
-                    ConstrainedConv2d(
-                        in_channels = 128, 
-                        out_channels = 3, 
-                        kernel_size = 3,
-                        padding = (1,1),
-                        padding_mode = "reflect"),
-                    nn.BatchNorm2d(3),
-                    nn.Tanh()
-                )
-        
         self.text_in.apply(init_weights).float()
         self.lstm.apply(init_weights).float()
         self.seed_in.apply(init_weights).float()
@@ -100,8 +88,6 @@ class Generator(nn.Module):
         for cnn in self.cnn_list:
             cnn.apply(init_weights).float()
         self.image_out.apply(init_weights).float()
-        if(self.trans):
-            self.bigger_image_out.apply(init_weights).float()
         self.to(device)
         
     def forward(self, text, seed, trans_level):
@@ -118,17 +104,13 @@ class Generator(nn.Module):
         if(not self.trans):
             x = self.cnn_list[-1](x)
         image = self.image_out(x)
+        if(self.trans):
+            x = self.cnn_list[-1](x)
+            image_2 = self.image_out(x)
+            image = F.interpolate(image, scale_factor = 2, mode = "nearest") #mode = "bilinear", align_corners = True)
+            image = image*trans_level + image_2*(1-trans_level)
         image = (image + 1) / 2
         image = image.permute(0, 2, 3, 1)
-        if(self.trans):
-            x_2 = self.cnn_list[-1](x)
-            image_2 = self.bigger_image_out(x_2)
-            image_2 = (image_2 + 1) / 2
-            image_2 = image_2.permute(0, 2, 3, 1)
-            image = image.permute(0, -1, 1, 2)
-            image = F.interpolate(image, scale_factor = 2, mode = "nearest") #mode = "bilinear", align_corners = True)
-            image = image.permute(0, 2, 3, 1)
-            image = image*trans_level + image_2*(1-trans_level)
         return(image)
     
 if __name__ == "__main__":
@@ -182,19 +164,6 @@ class Discriminator(nn.Module):
             nn.Dropout(.2)
             )
         
-        if(self.trans):
-            self.bigger_image_in = nn.Sequential(
-                    ConstrainedConv2d(
-                        in_channels = 3, 
-                        out_channels = 128, 
-                        kernel_size = 3,
-                        padding = (1,1),
-                        padding_mode = "reflect"),
-                nn.BatchNorm2d(128),
-                nn.LeakyReLU(),
-                nn.Dropout(.2)
-                )
-        
         self.cnn_list = nn.ModuleList()
         for i in range(layers):
             cnn = nn.Sequential(
@@ -229,9 +198,7 @@ class Discriminator(nn.Module):
         self.text_in.apply(init_weights).float()
         self.lstm.apply(init_weights).float()
         self.lin.apply(init_weights).float()
-        self.image_in.apply(init_weights).float()
-        if(self.trans):
-            self.bigger_image_in.apply(init_weights).float()        
+        self.image_in.apply(init_weights).float()   
         for cnn in self.cnn_list:
             cnn.apply(init_weights).float()
         self.guess.apply(init_weights).float()
@@ -245,7 +212,7 @@ class Discriminator(nn.Module):
         x = self.lin(x)
         image = (image.permute(0, -1, 1, 2) * 2) - 1
         if(self.trans):
-            image_2 = self.bigger_image_in(image)
+            image_2 = self.image_in(image)
             image_2 = self.cnn_list[0](image_2)
             image = F.interpolate(image, scale_factor = .5, mode = "bilinear", align_corners = True)
             image = self.image_in(image)
@@ -274,3 +241,5 @@ if __name__ == "__main__":
     
     
 
+
+# %%

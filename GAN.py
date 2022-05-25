@@ -16,8 +16,8 @@ class GAN:
         self.layers = 1
         self.trans = False
         self.trans_level = 1
-        self.trans_rate = .01
-        self.non_trans_rate = .01
+        self.trans_rate = .1
+        self.non_trans_rate = .1
         self.changes = []
         
         self.gen = Generator()
@@ -40,14 +40,14 @@ class GAN:
     def get_seeds(self, batch_size):
         return(torch.normal(0, 1, size = (batch_size, seed_size))).to(device)
     
+    
+    
     # Also, freeze old layers!
     def bigger_gen(self):
         old_state_dict = self.gen.state_dict()
         old_keys = old_state_dict.keys()
-        if(self.trans):
-            new_gen = Generator(self.layers, True)
-        else:
-            new_gen = Generator(self.layers, False)
+        if(self.trans): new_gen = Generator(self.layers, True)
+        else:           new_gen = Generator(self.layers, False)
         new_state_dict = new_gen.state_dict()
         for key in new_state_dict.keys():
             if key in old_keys:
@@ -65,10 +65,8 @@ class GAN:
     def bigger_dis(self, dis):
         old_state_dict = dis.state_dict()
         old_keys = old_state_dict.keys()
-        if(self.trans):
-            new_dis = Discriminator(self.layers, True)
-        else:
-            new_dis = Discriminator(self.layers, False)
+        if(self.trans): new_dis = Discriminator(self.layers, True)
+        else:           new_dis = Discriminator(self.layers, False)
         new_state_dict = new_dis.state_dict()
         for key in new_state_dict.keys():
             if key in old_keys:
@@ -76,6 +74,8 @@ class GAN:
         new_dis.load_state_dict(new_state_dict)
         dis_opts = Adam(new_dis.parameters(), self.lr)
         return(new_dis, dis_opts)
+    
+    
         
     def gen_epoch(self, seeds, texts_hot, test = False):
         self.gen.zero_grad()
@@ -130,7 +130,7 @@ class GAN:
             if(e%10 == 0 or e == 0):
                 self.display()
                 
-            print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {}.".format(
+            print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {} (but not).".format(
                 e, 2**(self.layers+1), 2**(self.layers+1), 
                 self.trans, round(self.trans_level,2), "real images" if dis_batch else "fakes"))
             
@@ -173,14 +173,14 @@ class GAN:
                     self.trans_level = 1
                     self.bigger_gen()
                     self.bigger_dises()
-                    print("Begin not transitioning:")
+                    print("Begin stasis:")
                     self.just_pics_display()
                 else:
                     self.changes.append(False)
             else:
                 self.trans_level -= self.non_trans_rate
                 if(self.trans_level <= 0):
-                    print("\n\nEnd of not transitioning:")
+                    print("\n\nEnd of stasis:")
                     self.just_pics_display()
                     self.changes.append(True)
                     self.trans = True
