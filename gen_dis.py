@@ -20,6 +20,8 @@ class ConstrainedConv2d(nn.Conv2d):
                                     self.padding, self.dilation, self.groups)
 
 
+
+
 seed_size = 256
 class Generator(nn.Module):
     
@@ -58,17 +60,7 @@ class Generator(nn.Module):
         
         self.cnn_list = nn.ModuleList()
         for i in range(layers):
-            cnn = nn.Sequential(
-                ConstrainedConv2d(
-                    in_channels = 128,
-                    out_channels = 128, 
-                    kernel_size = 3,
-                    padding = (1,1),
-                    padding_mode = "reflect"),
-                nn.BatchNorm2d(128),
-                nn.LeakyReLU(),
-                nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True))
-            self.cnn_list.append(cnn)
+            self.add_cnn()
             
         self.image_out = nn.Sequential(
                 ConstrainedConv2d(
@@ -90,6 +82,21 @@ class Generator(nn.Module):
         self.image_out.apply(init_weights).float()
         self.to(device)
         
+    def add_cnn(self):
+        cnn = nn.Sequential(
+            ConstrainedConv2d(
+                in_channels = 128,
+                out_channels = 128, 
+                kernel_size = 3,
+                padding = (1,1),
+                padding_mode = "reflect"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True))
+        cnn.apply(init_weights).float()
+        self.cnn_list.append(cnn.to(device))
+
+    
     def forward(self, text, seed, trans_level):
         x = self.text_in(text)
         self.lstm.flatten_parameters()
@@ -162,24 +169,13 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             nn.Dropout(.2)
-            )
+            ).to(device)
         
         self.cnn_list = nn.ModuleList()
         for i in range(layers):
-            cnn = nn.Sequential(
-                ConstrainedConv2d(
-                    in_channels = 128,
-                    out_channels = 128, 
-                    kernel_size = 3,
-                    stride = 2,
-                    padding = (1,1),
-                    padding_mode = "reflect"),
-                nn.BatchNorm2d(128),
-                nn.LeakyReLU(),
-                nn.Dropout(.2))
-            self.cnn_list.append(cnn)
+            self.add_cnn()
             
-        example = torch.zeros(1, 3, 2**(layers+1), 2**(layers+1))
+        example = torch.zeros(1, 3, 2**(layers+1), 2**(layers+1)).to(device)
         example = self.image_in(example)
         for cnn in self.cnn_list:
             example = cnn(example)
@@ -203,6 +199,21 @@ class Discriminator(nn.Module):
             cnn.apply(init_weights).float()
         self.guess.apply(init_weights).float()
         self.to(device)
+        
+    def add_cnn(self):
+        cnn = nn.Sequential(
+            ConstrainedConv2d(
+                in_channels = 128,
+                out_channels = 128, 
+                kernel_size = 3,
+                stride = 2,
+                padding = (1,1),
+                padding_mode = "reflect"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            nn.Dropout(.2))
+        cnn.apply(init_weights).float()
+        self.cnn_list.append(cnn.to(device))
         
     def forward(self, text, image, trans_level):
         x = self.text_in(text)

@@ -13,8 +13,8 @@ else:                       print("\n\nUsing CUDA! :D\n")
 
 
 
-#data_file = r"C:\Users\tedjt\Desktop\data"
-data_file = "/home/ted/Desktop/data"
+data_file = r"C:\Users\tedjt\Desktop\data"
+#data_file = "/home/ted/Desktop/data"
 
 
 from string import ascii_lowercase

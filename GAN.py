@@ -45,10 +45,10 @@ class GAN:
     
     # Also, freeze old layers!
     def bigger_gen(self):
-        if(self.trans): new_gen = Generator(self.layers, True)
-        else:           new_gen = Generator(self.layers, False)
-        replace_paras(self.gen, new_gen)
-        self.gen = new_gen
+        self.gen.trans = not self.gen.trans
+        if(self.gen.layers != self.layers):
+            self.gen.layers += 1
+            self.gen.add_cnn()
         self.gen_opt = Adam(self.gen.parameters(), self.lr)
         
     def bigger_dises(self):
@@ -58,14 +58,16 @@ class GAN:
             self.dis_opts[d] = new_opts
  
     def bigger_dis(self, dis):
-        if(self.trans): new_dis = Discriminator(self.layers, True)
-        else:           new_dis = Discriminator(self.layers, False)
-        replace_paras(dis, new_dis)
-        dis_opts = Adam(new_dis.parameters(), self.lr)
-        return(new_dis, dis_opts)
+        dis.trans = not dis.trans
+        if(dis.layers != self.layers):
+            dis.layers += 1
+            dis.add_cnn()
+        opt = Adam(dis.parameters(), self.lr)
+        return(dis, opt)
     
     
         
+    
     def gen_epoch(self, seeds, texts_hot, test = False):
         self.gen.zero_grad()
         if(test): self.gen.eval()
@@ -116,7 +118,7 @@ class GAN:
         dis_batch = True
         for e in range(epochs):
             
-            if(e%25 == 0 or e == 0):
+            if(e%10 == 0 or e == 0):
                 self.display()
                 
             print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {} (but not).".format(
