@@ -93,13 +93,11 @@ class GAN:
         else:
             self.gen_test_losses.append(loss.cpu().detach())
             
-    def dis_epoch(self, d, seeds, texts_hot, images, noise, real_correct, fake_correct, dis_false_batch, test = False):
+    def dis_epoch(self, d, gen_images, texts_hot, images, noise, real_correct, fake_correct, dis_false_batch, test = False):
         dis = self.dis[d]
         dis.zero_grad()
-        if(test): self.gen.eval();  dis.eval()
-        else:     self.gen.train(); dis.train()
-        with torch.no_grad():
-            gen_images = self.gen(texts_hot, seeds, self.trans_level)
+        if(test): dis.eval()
+        else:     dis.train()
         texts_hot = torch.cat([texts_hot]*2, 0)
         images = torch.cat([images, gen_images], 0)
         noisy_images = images + noise
@@ -140,19 +138,25 @@ class GAN:
             test_texts_hot  = texts_to_hot(test_texts)
             train_seeds = self.get_seeds(batch_size)
             test_seeds  = self.get_seeds(batch_size)
+            
+            self.gen_epoch(train_seeds, train_texts_hot, test = False)
+            self.gen_epoch(test_seeds,  test_texts_hot,  test = True)
+            
+            with torch.no_grad():
+                self.gen.train()
+                train_gen_images = self.gen(train_texts_hot, train_seeds, self.trans_level)
+                self.gen.eval()
+                test_gen_images  = self.gen(test_texts_hot,  test_seeds,  self.trans_level)
             real_correct = .9*torch.ones((batch_size,1)).to(device)
             fake_correct = torch.zeros(  (batch_size,1)).to(device)
             noise = torch.normal(
                 torch.zeros((train_images.shape[0]*2,) + train_images.shape[1:]), 
                 .05*torch.ones((train_images.shape[0]*2,) + train_images.shape[1:])).to(device)
             
-            self.gen_epoch(train_seeds, train_texts_hot, test = False)
-            self.gen_epoch(test_seeds,  test_texts_hot,  test = True)
-            
             for d in range(len(self.dis)):
-                self.dis_epoch(d, train_seeds, train_texts_hot, train_images, 
+                self.dis_epoch(d, train_gen_images, train_texts_hot, train_images, 
                                noise, real_correct, fake_correct, dis_false_batch, test = False)
-                self.dis_epoch(d, test_seeds,  test_texts_hot,  test_images,  
+                self.dis_epoch(d, test_gen_images,  test_texts_hot,  test_images,  
                                noise, real_correct, fake_correct, dis_false_batch, test = True)
             dis_false_batch = not dis_false_batch
             torch.cuda.synchronize()
