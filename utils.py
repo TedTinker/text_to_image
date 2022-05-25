@@ -53,8 +53,8 @@ def plot_losses(changes, train_losses, test_losses, title):
     for i, c in enumerate(changes):
         if(c):
             plt.axvline(x=i, color = (0,0,0,.4), linestyle='dashed')
-    plt.plot(train_losses, label = "training")
-    plt.plot(test_losses, label = "testing")
+    plt.plot(train_losses, label = "training", color = "red")
+    plt.plot(test_losses,  label = "testing",  color = "pink")
     plt.legend(loc = 'upper left')
     plt.title(title)
     plt.show()
@@ -65,8 +65,8 @@ def plot_acc(changes, d, train_fakes_acc, train_reals_acc, test_fakes_acc, test_
         if(c):
             plt.axvline(x=i, color = (0,0,0,.4), linestyle='dashed')
     plt.plot(train_fakes_acc, label = "train fake acc", color = "red")
-    plt.plot(test_fakes_acc,  label = "test fake acc",  color = "pink")
     plt.plot(train_reals_acc, label = "train real acc", color = "blue")
+    plt.plot(test_fakes_acc,  label = "test fake acc",  color = "pink")
     plt.plot(test_reals_acc,  label = "test real acc",  color = "dodgerblue")
     plt.ylim([0,1])
     plt.legend(loc = 'upper left')

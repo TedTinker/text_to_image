@@ -93,7 +93,7 @@ class GAN:
         else:
             self.gen_test_losses.append(loss.cpu().detach())
             
-    def dis_epoch(self, d, gen_images, texts_hot, images, noise, real_correct, fake_correct, dis_false_batch, test = False):
+    def dis_epoch(self, d, gen_images, texts_hot, images, noise, real_correct, fake_correct, dis_batch, test = False):
         dis = self.dis[d]
         dis.zero_grad()
         if(test): dis.eval()
@@ -122,15 +122,15 @@ class GAN:
             
                 
     def train(self, epochs = 100, batch_size = 64):
-        dis_false_batch = False
+        dis_batch = True
         for e in range(epochs):
             
             if(e%10 == 0 or e == 0):
                 self.display()
                 
-            print("Epoch {}: {}x{} images. Transitioning: {} ({}).".format(
+            print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {}.".format(
                 e, 2**(self.layers+1), 2**(self.layers+1), 
-                self.trans, round(self.trans_level,2)))
+                self.trans, round(self.trans_level,2), "real images" if dis_batch else "fakes"))
             
             _, train_texts, train_images = get_data(batch_size, 2**(self.layers+1), False)
             _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
@@ -155,10 +155,10 @@ class GAN:
             
             for d in range(len(self.dis)):
                 self.dis_epoch(d, train_gen_images, train_texts_hot, train_images, 
-                               noise, real_correct, fake_correct, dis_false_batch, test = False)
+                               noise, real_correct, fake_correct, dis_batch, test = False)
                 self.dis_epoch(d, test_gen_images,  test_texts_hot,  test_images,  
-                               noise, real_correct, fake_correct, dis_false_batch, test = True)
-            dis_false_batch = not dis_false_batch
+                               noise, real_correct, fake_correct, dis_batch, test = True)
+            dis_batch = not dis_batch
             torch.cuda.synchronize()
             
             if(self.trans): 
