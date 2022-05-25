@@ -134,8 +134,10 @@ class GAN:
             _, train_texts, train_images = get_data(batch_size, 2**(self.layers+1), False)
             _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
             train_texts_hot = texts_to_hot(train_texts)
-            test_texts_hot = texts_to_hot(test_texts)
-            seeds = self.get_seeds(batch_size)
+            test_texts_hot  = texts_to_hot(test_texts)
+            train_seeds = self.get_seeds(batch_size)
+            test_seeds  = self.get_seeds(batch_size)
+
             correct = torch.cat([
                 .9*torch.ones((batch_size,1)),
                 .1*torch.ones((batch_size,1))]).to(device)
@@ -144,12 +146,12 @@ class GAN:
                 torch.zeros((train_images.shape[0]*2,) + train_images.shape[1:]), 
                 .05*torch.ones((train_images.shape[0]*2,) + train_images.shape[1:])).to(device)
             
-            self.gen_epoch(seeds, train_texts_hot, test = False)
-            self.gen_epoch(seeds, test_texts_hot,  test = True)
+            self.gen_epoch(train_seeds, train_texts_hot, test = False)
+            self.gen_epoch(test_seeds,  test_texts_hot,  test = True)
             for d in range(len(self.dis)):
-                self.dis_epoch(d, seeds, train_texts_hot, train_images, 
+                self.dis_epoch(d, train_seeds, train_texts_hot, train_images, 
                                noise, correct, noisy_correct, test = False)
-                self.dis_epoch(d, seeds, test_texts_hot,  test_images,  
+                self.dis_epoch(d, test_seeds,  test_texts_hot,  test_images,  
                                noise, correct, noisy_correct, test = True)
             torch.cuda.synchronize()
             
