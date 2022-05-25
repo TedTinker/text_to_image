@@ -23,11 +23,12 @@ class First(nn.Module):
         for lin in self.lin_list:
             x = lin(x)
         return(x)
-    
-first = First()
-print(first)
-print()
-print(torch_summary(first, (1,3)))
+
+if(__name__ == "__main__"):
+    first = First()
+    print(first)
+    print()
+    print(torch_summary(first, (1,3)))
 # %%
 class Second(nn.Module):
     
@@ -53,11 +54,12 @@ class Second(nn.Module):
             x = lin(x)
         x = self.lin_2(x)
         return(x)
-    
-second = Second()
-print(second)
-print()
-print(torch_summary(second, (1,3)))
+
+if(__name__ == "__main__"):
+    second = Second()
+    print(second)
+    print()
+    print(torch_summary(second, (1,3)))
 # %%
 
 def print_state_dict(string, state_dict):
@@ -65,20 +67,22 @@ def print_state_dict(string, state_dict):
     for key in state_dict.keys():
         print("{} : {}".format(key, state_dict[key]))
 
-def replace_paras(old, new):
+def replace_paras(old, new, verbal = False):
     old_state_dict = old.state_dict()
     old_keys = old_state_dict.keys()
     new_state_dict = new.state_dict()
-    print_state_dict("Old", old_state_dict)
-    print_state_dict("To change", new_state_dict)
-    print("\n\n")
+    if(verbal):
+        print_state_dict("Old", old_state_dict)
+        print_state_dict("To change", new_state_dict)
+        print("\n\n")
     for key in new_state_dict.keys():
-        print("Checking...", key)
+        if(verbal): print("Checking...", key)
         if key in old_keys:
-            print("\tIt's here!")
+            if(verbal): print("\tIt's here!")
             new_state_dict[key] = old_state_dict[key]
     new.load_state_dict(new_state_dict)
-    print_state_dict("New", new.state_dict())
+    if(verbal): print_state_dict("New", new.state_dict())
 
-replace_paras(first, second)
+if(__name__ == "__main__"):
+    replace_paras(first, second)
 # %%

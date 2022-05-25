@@ -8,6 +8,7 @@ import numpy as np
 from utils import device, plot_losses, plot_images, plot_acc, texts_to_hot
 from get_data import get_data, get_image
 from gen_dis import Generator, Discriminator, seed_size
+from testing_trans import replace_paras
 
 class GAN:
     def __init__(self, d = 3):
@@ -16,8 +17,8 @@ class GAN:
         self.layers = 1
         self.trans = False
         self.trans_level = 1
-        self.trans_rate = .1
-        self.non_trans_rate = .1
+        self.trans_rate = .01
+        self.non_trans_rate = .01
         self.changes = []
         
         self.gen = Generator()
@@ -44,15 +45,9 @@ class GAN:
     
     # Also, freeze old layers!
     def bigger_gen(self):
-        old_state_dict = self.gen.state_dict()
-        old_keys = old_state_dict.keys()
         if(self.trans): new_gen = Generator(self.layers, True)
         else:           new_gen = Generator(self.layers, False)
-        new_state_dict = new_gen.state_dict()
-        for key in new_state_dict.keys():
-            if key in old_keys:
-                new_state_dict[key] = old_state_dict[key]
-        new_gen.load_state_dict(new_state_dict)
+        replace_paras(self.gen, new_gen)
         self.gen = new_gen
         self.gen_opt = Adam(self.gen.parameters(), self.lr)
         
@@ -63,15 +58,9 @@ class GAN:
             self.dis_opts[d] = new_opts
  
     def bigger_dis(self, dis):
-        old_state_dict = dis.state_dict()
-        old_keys = old_state_dict.keys()
         if(self.trans): new_dis = Discriminator(self.layers, True)
         else:           new_dis = Discriminator(self.layers, False)
-        new_state_dict = new_dis.state_dict()
-        for key in new_state_dict.keys():
-            if key in old_keys:
-                new_state_dict[key] = old_state_dict[key]
-        new_dis.load_state_dict(new_state_dict)
+        replace_paras(dis, new_dis)
         dis_opts = Adam(new_dis.parameters(), self.lr)
         return(new_dis, dis_opts)
     
@@ -127,7 +116,7 @@ class GAN:
         dis_batch = True
         for e in range(epochs):
             
-            if(e%10 == 0 or e == 0):
+            if(e%25 == 0 or e == 0):
                 self.display()
                 
             print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {} (but not).".format(
