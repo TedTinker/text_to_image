@@ -87,7 +87,7 @@ class GAN:
         else:
             self.gen_test_losses.append(loss.cpu().detach())
             
-    def dis_epoch(self, d, gen_images, texts_hot, images, noise, real_correct, fake_correct, dis_batch, test = False):
+    def dis_epoch(self, d, gen_images, texts_hot, images, noise, real_correct, fake_correct, test = False):
         dis = self.dis[d]
         dis.zero_grad()
         if(test): dis.eval()
@@ -117,13 +117,12 @@ class GAN:
                 
     # Get "minibatched" working!
     def train(self, epochs = 100, batch_size = 64):
-        dis_batch = True
         for e in range(epochs):
             
             if(e%5 == 0 or e == 0):
-                print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {} (but not).".format(
+                print("Epoch {}: {}x{} images. Transitioning: {} ({}).".format(
                     e, 2**(self.layers+1), 2**(self.layers+1), 
-                    self.trans, round(self.trans_level,2), "real images" if dis_batch else "fakes"))
+                    self.trans, round(self.trans_level,2)))
             if(e%50 == 0 or e == 0):
                 self.display()
             
@@ -133,10 +132,6 @@ class GAN:
             test_texts_hot  = texts_to_hot(test_texts)
             train_seeds = self.get_seeds(batch_size)
             test_seeds  = self.get_seeds(batch_size)
-            
-            self.gen_epoch(train_seeds, train_texts_hot, test = False)
-            self.gen_epoch(test_seeds,  test_texts_hot,  test = True)
-            
             with torch.no_grad():
                 self.gen.train()
                 train_gen_images = self.gen(train_texts_hot, train_seeds, self.trans_level)
@@ -150,10 +145,14 @@ class GAN:
             
             for d in range(len(self.dis)):
                 self.dis_epoch(d, train_gen_images, train_texts_hot, train_images, 
-                               noise, real_correct, fake_correct, dis_batch, test = False)
+                               noise, real_correct, fake_correct, test = False)
                 self.dis_epoch(d, test_gen_images,  test_texts_hot,  test_images,  
-                               noise, real_correct, fake_correct, dis_batch, test = True)
-            dis_batch = not dis_batch
+                               noise, real_correct, fake_correct, test = True)            
+            
+            self.gen_epoch(train_seeds, train_texts_hot, test = False)
+            self.gen_epoch(test_seeds,  test_texts_hot,  test = True)
+            
+
             torch.cuda.synchronize()
             
             if(self.trans): 
