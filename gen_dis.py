@@ -53,7 +53,7 @@ class Generator(nn.Module):
         
         self.lin = nn.Sequential(
             nn.LeakyReLU(),
-            nn.Linear(512, 2*2*128),
+            nn.Linear(512 + 256, 2*2*128),
             nn.BatchNorm1d(2*2*128),
             nn.LeakyReLU()
             )
@@ -94,8 +94,14 @@ class Generator(nn.Module):
             nn.LeakyReLU(),
             nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True))
         cnn.apply(init_weights).float()
-        self.cnn_list.append(cnn.to(device))
-
+        self.cnn_list.append(cnn.to(device))        
+        
+    def freeze(self):
+        keys = self.state_dict().keys()
+        freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
+        for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
+            if(i > 5 and i < len(freezable_keys)-6):
+                param.requires_grad = False
     
     def forward(self, text, seed, trans_level):
         x = self.text_in(text)
@@ -104,7 +110,7 @@ class Generator(nn.Module):
         x = x[:,-1,:]
         seed = self.seed_in(seed)
         x = torch.cat([x, seed],-1)
-        x = self.lin(seed)
+        x = self.lin(x)
         x = x.reshape(x.shape[0], 128, 2, 2)
         for cnn in self.cnn_list[:-1]:
             x = cnn(x)
@@ -213,7 +219,14 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(),
             nn.Dropout(.2))
         cnn.apply(init_weights).float()
-        self.cnn_list.append(cnn.to(device))
+        self.cnn_list.insert(0,cnn.to(device))
+        
+    def freeze(self):
+        keys = self.state_dict().keys()
+        freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
+        for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
+            if(i >= 12):
+                param.requires_grad = False
         
     def forward(self, text, image, trans_level):
         x = self.text_in(text)

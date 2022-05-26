@@ -48,6 +48,7 @@ class GAN:
         if(self.gen.layers != self.layers):
             self.gen.layers += 1
             self.gen.add_cnn()
+        self.gen.freeze()
         self.gen_opt = Adam(self.gen.parameters(), self.lr)
         
     def bigger_dises(self):
@@ -61,6 +62,7 @@ class GAN:
         if(dis.layers != self.layers):
             dis.layers += 1
             dis.add_cnn()
+        dis.freeze()
         opt = Adam(dis.parameters(), self.lr)
         return(dis, opt)
     
