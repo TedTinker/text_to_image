@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import linalg as LA
 from torchinfo import summary as torch_summary
     
-from utils import device, chars
+from utils import device, text_size
 
 
 
@@ -33,21 +33,13 @@ class Generator(nn.Module):
         self.trans = transitioning
         
         self.text_in = nn.Sequential(
-            nn.Linear(len(chars), 128),
+            nn.Linear(text_size, 256),
+            nn.BatchNorm1d(256),
             nn.LeakyReLU()
-            )
-        
-        self.lstm = nn.LSTM(
-            input_size = 128,
-            hidden_size = 256,
-            batch_first = True
             )
         
         self.seed_in = nn.Sequential(
             nn.Linear(seed_size, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(),
-            nn.Linear(512, 512),
             nn.BatchNorm1d(512),
             nn.LeakyReLU()
             )
@@ -73,7 +65,6 @@ class Generator(nn.Module):
             )
         
         self.text_in.apply(init_weights).float()
-        self.lstm.apply(init_weights).float()
         self.seed_in.apply(init_weights).float()
         self.lin.apply(init_weights).float()
         for cnn in self.cnn_list:
@@ -100,17 +91,13 @@ class Generator(nn.Module):
         keys = self.state_dict().keys()
         freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
         for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
-            if(i > 5 and i < len(freezable_keys)-6):
+            if(i >= 12 and i < len(freezable_keys)-6):
                 if(verbose): print("Freezing", key)
                 param.requires_grad = False
             elif(verbose): print("NOT freezing", key)
-
     
     def forward(self, text, seed, trans_level):
         text = self.text_in(text)
-        self.lstm.flatten_parameters()
-        text, _ = self.lstm(text)
-        text = text[:,-1,:]
         seed = self.seed_in(seed)
         x = torch.cat([text, seed],-1)
         x = self.lin(x)
@@ -131,12 +118,21 @@ class Generator(nn.Module):
     
 if __name__ == "__main__":
     print("\n\n\n")
-    layers = 2
-    gen = Generator(layers = layers, transitioning = True)
+    layers = 1
+    gen = Generator(layers = layers, transitioning = False)
     print(gen)
     print()
     print(torch_summary(gen, (
-        (1, 1, len(chars)), 
+        (1, text_size), 
+        (1, seed_size),
+        (1,1))))
+    gen.add_cnn()
+    gen.freeze(verbose = True)
+    print("\n\n\n")
+    print(gen)
+    print()
+    print(torch_summary(gen, (
+        (1, text_size), 
         (1, seed_size),
         (1,1))))
     
@@ -152,14 +148,8 @@ class Discriminator(nn.Module):
         self.trans = transitioning
         
         self.text_in = nn.Sequential(
-            nn.Linear(len(chars), 128),
+            nn.Linear(text_size, 256),
             nn.LeakyReLU()
-            )
-        
-        self.lstm = nn.LSTM(
-            input_size = 128,
-            hidden_size = 256,
-            batch_first = True
             )
         
         self.norm_in = nn.Sequential(
@@ -191,16 +181,11 @@ class Discriminator(nn.Module):
         quantity = example.shape[1]
                     
         self.guess = nn.Sequential(
-                    nn.Linear(quantity + 256 + 16, 512),
-                    nn.BatchNorm1d(512),
-                    nn.LeakyReLU(),
-                    nn.Dropout(.2),
-                    nn.Linear(512, 1),
+                    nn.Linear(quantity + 256 + 16, 1),
                     nn.BatchNorm1d(1),
                     nn.Tanh())
         
         self.text_in.apply(init_weights).float()
-        self.lstm.apply(init_weights).float()
         self.norm_in.apply(init_weights).float()
         self.image_in.apply(init_weights).float()   
         for cnn in self.cnn_list:
@@ -228,16 +213,13 @@ class Discriminator(nn.Module):
         keys = self.state_dict().keys()
         freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
         for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
-            if(i >= 12):
+            if(i >= 11 and i < len(freezable_keys)-4):
                 if(verbose): print("Freezing", key)
                 param.requires_grad = False
             elif(verbose): print("NOT freezing", key)
 
     def forward(self, text, image, trans_level):
         text = self.text_in(text)
-        self.lstm.flatten_parameters()
-        text, _ = self.lstm(text)
-        text = text[:,-1,:]
         image = (image.permute(0, -1, 1, 2) * 2) - 1
         norm = LA.norm(image, dim=(1,2,3))
         norm = self.norm_in(norm.unsqueeze(1))
@@ -260,13 +242,21 @@ class Discriminator(nn.Module):
     
 if __name__ == "__main__":
     print("\n\n\n")
-    layers = 4
+    layers = 1
     dis = Discriminator(layers = layers, transitioning = True)
     print(dis)
     print()
     print(torch_summary(dis, (
-        (1, 1, len(chars)), 
-        (1,2*(2**layers), 2*(2**layers),3),
+        (1, text_size), 
+        (1,2**(layers+1), 2**(layers+1),3),
+        (1,1))))
+    dis.add_cnn()
+    dis.freeze(verbose = True)
+    print(dis)
+    print()
+    print(torch_summary(dis, (
+        (1, text_size), 
+        (1,2**(layers+2), 2**(layers+2),3),
         (1,1))))
     
     

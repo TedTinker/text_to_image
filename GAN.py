@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 import numpy as np
 
-from utils import device, plot_losses, plot_images, plot_acc, texts_to_hot
+from utils import device, plot_losses, plot_images, plot_acc, texts_to_tensor
 from get_data import get_data, get_image
 from gen_dis import Generator, Discriminator, seed_size
 
@@ -128,8 +128,8 @@ class GAN:
             
             _, train_texts, train_images = get_data(batch_size, 2**(self.layers+1), False)
             _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
-            train_texts_hot = texts_to_hot(train_texts)
-            test_texts_hot  = texts_to_hot(test_texts)
+            train_texts_hot = texts_to_tensor(train_texts)
+            test_texts_hot  = texts_to_tensor(test_texts)
             train_seeds = self.get_seeds(batch_size)
             test_seeds  = self.get_seeds(batch_size)
             with torch.no_grad():
@@ -200,6 +200,6 @@ class GAN:
         plot_images(
             display_images, 3, 3)
         plot_images(self.gen(
-            texts_to_hot(self.display_texts), 
+            texts_to_tensor(self.display_texts), 
             self.display_seeds, self.trans_level).cpu().detach(), 3, 3)
         print()

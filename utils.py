@@ -13,38 +13,9 @@ else:                       print("\n\nUsing CUDA! :D\n")
 
 
 
-#data_file = r"C:\Users\tedjt\Desktop\data"
-data_file = "/home/ted/Desktop/data"
+data_file = r"C:\Users\tedjt\Desktop\data"
+#data_file = "/home/ted/Desktop/data"
 
-
-from string import ascii_lowercase
-chars = ascii_lowercase + " 1234567890"
-
-cap_len = 64
-
-def char_to_hot(c):
-    try:
-        index = chars.index(c)
-    except:
-        print("\n\n{}\n\n".format(c))
-        assert False
-    h = [0 for _ in range(len(chars))]
-    h[index] = 1
-    return(h)
-
-def text_to_hot(t):
-    h = []
-    for c in t:
-        h.append(char_to_hot(c))
-    while(len(h) < cap_len): h.append(char_to_hot(" "))
-    if(len(h) > cap_len):    h = h[:cap_len]
-    return(h)
-
-def texts_to_hot(texts):
-    h = []
-    for t in texts:
-        h.append(text_to_hot(t))
-    return(torch.tensor(h).to(device).float())
 
 
 from transformers import BertTokenizer, BertModel
@@ -56,7 +27,7 @@ def texts_to_tensor(texts):
     with torch.no_grad():
         if(type(texts) != list):
             texts = texts.tolist()
-        tokens = tokenizer(texts, padding='max_length', max_length = 50, truncation=True, return_tensors="pt")
+        tokens = tokenizer(texts, padding='max_length', max_length = 40, truncation=True, return_tensors="pt")
         _, pooled_output = bert(input_ids= tokens['input_ids'].to(device), attention_mask=tokens['attention_mask'].to(device),return_dict=False)
     return(pooled_output)
 
