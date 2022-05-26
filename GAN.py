@@ -118,12 +118,12 @@ class GAN:
         dis_batch = True
         for e in range(epochs):
             
-            if(e%10 == 0 or e == 0):
+            if(e%5 == 0 or e == 0):
+                print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {} (but not).".format(
+                    e, 2**(self.layers+1), 2**(self.layers+1), 
+                    self.trans, round(self.trans_level,2), "real images" if dis_batch else "fakes"))
+            if(e%50 == 0 or e == 0):
                 self.display()
-                
-            print("Epoch {}: {}x{} images. Transitioning: {} ({}).\n\tDiscriminator trains on {} (but not).".format(
-                e, 2**(self.layers+1), 2**(self.layers+1), 
-                self.trans, round(self.trans_level,2), "real images" if dis_batch else "fakes"))
             
             _, train_texts, train_images = get_data(batch_size, 2**(self.layers+1), False)
             _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
@@ -157,30 +157,22 @@ class GAN:
             if(self.trans): 
                 self.trans_level -= self.trans_rate 
                 if(self.trans_level <= 0):
-                    print("\n\nEnd of transitioning:")
-                    self.just_pics_display()
                     self.changes.append(True)
                     self.trans = False
                     self.trans_level = 1
                     self.bigger_gen()
                     self.bigger_dises()
-                    print("Begin stasis:")
-                    self.just_pics_display()
                 else:
                     self.changes.append(False)
             else:
                 self.trans_level -= self.non_trans_rate
                 if(self.trans_level <= 0):
-                    print("\n\nEnd of stasis:")
-                    self.just_pics_display()
                     self.changes.append(True)
                     self.trans = True
                     self.layers += 1
                     self.trans_level = 1
                     self.bigger_gen()
                     self.bigger_dises()
-                    print("Begin transitioning:")
-                    self.just_pics_display()
                 else:
                     self.changes.append(False)
             if(self.layers >= 256):
@@ -210,10 +202,3 @@ class GAN:
             texts_to_hot(self.display_texts), 
             self.display_seeds, self.trans_level).cpu().detach(), 3, 3)
         print()
-        
-    def just_pics_display(self):
-        plot_images(self.gen(
-            texts_to_hot(self.display_texts), 
-            self.display_seeds, self.trans_level).cpu().detach(), 3, 3)
-        print()
-

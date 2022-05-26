@@ -225,7 +225,7 @@ class Discriminator(nn.Module):
         if(self.trans):
             image_2 = self.image_in(image)
             image_2 = self.cnn_list[0](image_2)
-            image = F.interpolate(image, scale_factor = .5, mode = "bilinear", align_corners = True)
+            image = F.interpolate(image, scale_factor = .5, mode = "bilinear", align_corners = True, recompute_scale_factor=False)
             image = self.image_in(image)
             image = image*trans_level + image_2*(1-trans_level)
             for cnn in self.cnn_list[1:]:
