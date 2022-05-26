@@ -67,9 +67,7 @@ class Generator(nn.Module):
                 ConstrainedConv2d(
                     in_channels = 128, 
                     out_channels = 3, 
-                    kernel_size = 3,
-                    padding = (1,1),
-                    padding_mode = "reflect"),
+                    kernel_size = 1),
                 nn.BatchNorm2d(3),
                 nn.Tanh()
             )
@@ -105,12 +103,12 @@ class Generator(nn.Module):
                 param.requires_grad = False
     
     def forward(self, text, seed, trans_level):
-        x = self.text_in(text)
+        text = self.text_in(text)
         self.lstm.flatten_parameters()
-        x, _ = self.lstm(x)
-        x = x[:,-1,:]
+        text, _ = self.lstm(text)
+        text = text[:,-1,:]
         seed = self.seed_in(seed)
-        x = torch.cat([x, seed],-1)
+        x = torch.cat([text, seed],-1)
         x = self.lin(x)
         x = x.reshape(x.shape[0], 128, 2, 2)
         for cnn in self.cnn_list[:-1]:
@@ -229,10 +227,10 @@ class Discriminator(nn.Module):
                 param.requires_grad = False
         
     def forward(self, text, image, trans_level):
-        x = self.text_in(text)
+        text = self.text_in(text)
         self.lstm.flatten_parameters()
-        x, _ = self.lstm(x)
-        x = x[:,-1,:]
+        text, _ = self.lstm(text)
+        text = text[:,-1,:]
         image = (image.permute(0, -1, 1, 2) * 2) - 1
         norm = LA.norm(image, dim=(1,2,3))
         norm = self.norm_in(norm.unsqueeze(1))
@@ -249,7 +247,7 @@ class Discriminator(nn.Module):
             for cnn in self.cnn_list:
                 image = cnn(image)
         image = image.flatten(1)
-        x = torch.cat([x, image, norm], -1)
+        x = torch.cat([text, image, norm], -1)
         x = (self.guess(x) + 1)/2
         return(x)
     
