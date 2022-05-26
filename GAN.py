@@ -67,26 +67,7 @@ class GAN:
         return(dis, opt)
     
     
-        
-    
-    def gen_epoch(self, seeds, texts_hot, test = False):
-        self.gen.zero_grad()
-        if(test): self.gen.eval()
-        else:     self.gen.train()
-        gen_images = self.gen(texts_hot, seeds, self.trans_level)
-        judgements = []
-        for dis in self.dis:
-            dis.eval()
-            judgements.append(dis(texts_hot, gen_images, self.trans_level))
-        judgements = torch.cat(judgements, 1)
-        loss = self.bce(judgements, torch.ones(judgements.shape).to(device))
-        if(not test):
-            loss.backward()
-            self.gen_opt.step()
-            self.gen_train_losses.append(loss.cpu().detach())
-        else:
-            self.gen_test_losses.append(loss.cpu().detach())
-            
+
     def dis_epoch(self, d, gen_images, texts_hot, images, noise, real_correct, fake_correct, test = False):
         dis = self.dis[d]
         dis.zero_grad()
@@ -112,6 +93,25 @@ class GAN:
             self.dis_test_losses[d].append(loss.cpu().detach())
             self.test_reals_acc[d].append(reals_accuracy)
             self.test_fakes_acc[d].append(fakes_accuracy)
+    
+    def gen_epoch(self, seeds, texts_hot, test = False):
+        self.gen.zero_grad()
+        if(test): self.gen.eval()
+        else:     self.gen.train()
+        gen_images = self.gen(texts_hot, seeds, self.trans_level)
+        judgements = []
+        for dis in self.dis:
+            if(test): dis.eval()
+            else:     dis.train()
+            judgements.append(dis(texts_hot, gen_images, self.trans_level))
+        judgements = torch.cat(judgements, 1)
+        loss = self.bce(judgements, torch.ones(judgements.shape).to(device))
+        if(not test):
+            loss.backward()
+            self.gen_opt.step()
+            self.gen_train_losses.append(loss.cpu().detach())
+        else:
+            self.gen_test_losses.append(loss.cpu().detach())
             
             
                 

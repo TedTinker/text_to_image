@@ -2,6 +2,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch import linalg as LA
 from torchinfo import summary as torch_summary
     
 from utils import device, chars
@@ -159,9 +160,8 @@ class Discriminator(nn.Module):
             batch_first = True
             )
         
-        self.lin = nn.Sequential(
-            nn.LeakyReLU(),
-            nn.Linear(256, 128),
+        self.norm_in = nn.Sequential(
+            nn.Linear(1, 16),
             nn.LeakyReLU()
             )
                 
@@ -189,7 +189,7 @@ class Discriminator(nn.Module):
         quantity = example.shape[1]
                     
         self.guess = nn.Sequential(
-                    nn.Linear(quantity, 512),
+                    nn.Linear(quantity + 256 + 16, 512),
                     nn.BatchNorm1d(512),
                     nn.LeakyReLU(),
                     nn.Dropout(.2),
@@ -199,7 +199,7 @@ class Discriminator(nn.Module):
         
         self.text_in.apply(init_weights).float()
         self.lstm.apply(init_weights).float()
-        self.lin.apply(init_weights).float()
+        self.norm_in.apply(init_weights).float()
         self.image_in.apply(init_weights).float()   
         for cnn in self.cnn_list:
             cnn.apply(init_weights).float()
@@ -233,8 +233,9 @@ class Discriminator(nn.Module):
         self.lstm.flatten_parameters()
         x, _ = self.lstm(x)
         x = x[:,-1,:]
-        x = self.lin(x)
         image = (image.permute(0, -1, 1, 2) * 2) - 1
+        norm = LA.norm(image, dim=(1,2,3))
+        norm = self.norm_in(norm.unsqueeze(1))
         if(self.trans):
             image_2 = self.image_in(image)
             image_2 = self.cnn_list[0](image_2)
@@ -248,8 +249,8 @@ class Discriminator(nn.Module):
             for cnn in self.cnn_list:
                 image = cnn(image)
         image = image.flatten(1)
-        x = torch.cat([x, image], -1)
-        x = (self.guess(image) + 1)/2
+        x = torch.cat([x, image, norm], -1)
+        x = (self.guess(x) + 1)/2
         return(x)
     
 if __name__ == "__main__":
