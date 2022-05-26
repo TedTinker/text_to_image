@@ -95,12 +95,16 @@ class Generator(nn.Module):
         cnn.apply(init_weights).float()
         self.cnn_list.append(cnn.to(device))        
         
-    def freeze(self):
+    def freeze(self, verbose = False):
+        if(verbose): print("\n\nFreezing generator:")
         keys = self.state_dict().keys()
         freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
         for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
             if(i > 5 and i < len(freezable_keys)-6):
+                if(verbose): print("Freezing", key)
                 param.requires_grad = False
+            elif(verbose): print("NOT freezing", key)
+
     
     def forward(self, text, seed, trans_level):
         text = self.text_in(text)
@@ -219,13 +223,16 @@ class Discriminator(nn.Module):
         cnn.apply(init_weights).float()
         self.cnn_list.insert(0,cnn.to(device))
         
-    def freeze(self):
+    def freeze(self, verbose = False):
+        if(verbose): print("\n\nFreezing discriminator:")
         keys = self.state_dict().keys()
         freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
         for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
             if(i >= 12):
+                if(verbose): print("Freezing", key)
                 param.requires_grad = False
-        
+            elif(verbose): print("NOT freezing", key)
+
     def forward(self, text, image, trans_level):
         text = self.text_in(text)
         self.lstm.flatten_parameters()

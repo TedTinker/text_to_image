@@ -47,6 +47,23 @@ def texts_to_hot(texts):
     return(torch.tensor(h).to(device).float())
 
 
+from transformers import BertTokenizer, BertModel
+
+tokenizer = tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+bert = BertModel.from_pretrained('bert-base-cased').to(device)
+
+def texts_to_tensor(texts):
+    with torch.no_grad():
+        if(type(texts) != list):
+            texts = texts.tolist()
+        tokens = tokenizer(texts, padding='max_length', max_length = 50, truncation=True, return_tensors="pt")
+        _, pooled_output = bert(input_ids= tokens['input_ids'].to(device), attention_mask=tokens['attention_mask'].to(device),return_dict=False)
+    return(pooled_output)
+
+text_sample = texts_to_tensor(["a man is climbing a mountain", "two men are climbing three mountains"])
+text_size = text_sample.shape[1]
+
+
 
 
 def plot_losses(changes, train_losses, test_losses, title):
