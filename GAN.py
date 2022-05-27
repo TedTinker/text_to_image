@@ -16,8 +16,8 @@ class GAN:
         self.layers = 1
         self.trans = False
         self.trans_level = 1
-        self.trans_rate = .01
-        self.non_trans_rate = .01
+        self.trans_rate = .0
+        self.non_trans_rate = .0
         self.changes = []
         
         self.gen = Generator()
