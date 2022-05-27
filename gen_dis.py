@@ -59,7 +59,7 @@ class Generator(nn.Module):
                 ConstrainedConv2d(
                     in_channels = 128, 
                     out_channels = 3, 
-                    kernel_size = 1),
+                    kernel_size = 1, bias=False),
                 nn.BatchNorm2d(3),
                 nn.Tanh()
             )
@@ -79,7 +79,7 @@ class Generator(nn.Module):
                 out_channels = 128, 
                 kernel_size = 3,
                 padding = (1,1),
-                padding_mode = "reflect"),
+                padding_mode = "reflect", bias=False),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners = True))
@@ -91,7 +91,7 @@ class Generator(nn.Module):
         keys = self.state_dict().keys()
         freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
         for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
-            if(i >= 12 and i < len(freezable_keys)-6):
+            if(i >= 12 and i < len(freezable_keys)-5):
                 if(verbose): print("Freezing", key)
                 param.requires_grad = False
             elif(verbose): print("NOT freezing", key)
@@ -163,7 +163,7 @@ class Discriminator(nn.Module):
                 out_channels = 128, 
                 kernel_size = 3,
                 padding = (1,1),
-                padding_mode = "reflect"),
+                padding_mode = "reflect", bias=False),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             nn.Dropout(.2)
@@ -201,7 +201,7 @@ class Discriminator(nn.Module):
                 kernel_size = 3,
                 stride = 2,
                 padding = (1,1),
-                padding_mode = "reflect"),
+                padding_mode = "reflect", bias=False),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             nn.Dropout(.2))
@@ -213,7 +213,7 @@ class Discriminator(nn.Module):
         keys = self.state_dict().keys()
         freezable_keys = [key for key in keys if any(map(key.__contains__, ["weight", "bias"]))]
         for i, (param, key) in enumerate(zip(self.parameters(), freezable_keys)):
-            if(i >= 11 and i < len(freezable_keys)-4):
+            if(i >= 10 and i < len(freezable_keys)-4):
                 if(verbose): print("Freezing", key)
                 param.requires_grad = False
             elif(verbose): print("NOT freezing", key)
@@ -250,6 +250,7 @@ if __name__ == "__main__":
         (1,1))))
     dis.add_cnn()
     dis.freeze(verbose = True)
+    print("\n\n\n")
     print(dis)
     print()
     print(torch_summary(dis, (

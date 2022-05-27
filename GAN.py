@@ -42,7 +42,6 @@ class GAN:
     
     
     
-    # Also, freeze old layers!
     def bigger_gen(self):
         self.gen.trans = not self.gen.trans
         if(self.gen.layers != self.layers):
@@ -68,6 +67,7 @@ class GAN:
     
     
 
+    # Mini-batches not implemented
     def dis_epoch(self, d, gen_images, texts_hot, images, noise, real_correct, fake_correct, test = False):
         dis = self.dis[d]
         dis.zero_grad()
@@ -115,28 +115,27 @@ class GAN:
             
             
                 
-    # Get "minibatched" working!
-    def train(self, epochs = 100, batch_size = 64):
+    def train(self, epochs = 100, batch_size = 64, announce = 5, display = 25):
         for e in range(epochs):
             
-            if(e%5 == 0 or e == 0):
+            if(e%announce == 0 or e == 0):
                 print("Epoch {}: {}x{} images. Transitioning: {} ({}).".format(
                     e, 2**(self.layers+1), 2**(self.layers+1), 
                     self.trans, round(self.trans_level,2)))
-            if(e%50 == 0 or e == 0):
+            if(e%display == 0 or e == 0):
                 self.display()
             
             _, train_texts, train_images = get_data(batch_size, 2**(self.layers+1), False)
             _, test_texts,  test_images  = get_data(batch_size, 2**(self.layers+1), True)
-            train_texts_hot = texts_to_tensor(train_texts)
-            test_texts_hot  = texts_to_tensor(test_texts)
+            train_texts_tensor = texts_to_tensor(train_texts)
+            test_texts_tensor  = texts_to_tensor(test_texts)
             train_seeds = self.get_seeds(batch_size)
             test_seeds  = self.get_seeds(batch_size)
             with torch.no_grad():
                 self.gen.train()
-                train_gen_images = self.gen(train_texts_hot, train_seeds, self.trans_level)
+                train_gen_images = self.gen(train_texts_tensor, train_seeds, self.trans_level)
                 self.gen.eval()
-                test_gen_images  = self.gen(test_texts_hot,  test_seeds,  self.trans_level)
+                test_gen_images  = self.gen(test_texts_tensor,  test_seeds,  self.trans_level)
             real_correct = .9*torch.ones((batch_size,1)).to(device)
             fake_correct = torch.zeros(  (batch_size,1)).to(device)
             noise = torch.normal(
@@ -144,13 +143,13 @@ class GAN:
                 .05*torch.ones((train_images.shape[0]*2,) + train_images.shape[1:])).to(device)
             
             for d in range(len(self.dis)):
-                self.dis_epoch(d, train_gen_images, train_texts_hot, train_images, 
+                self.dis_epoch(d, train_gen_images, train_texts_tensor, train_images, 
                                noise, real_correct, fake_correct, test = False)
-                self.dis_epoch(d, test_gen_images,  test_texts_hot,  test_images,  
+                self.dis_epoch(d, test_gen_images,  test_texts_tensor,  test_images,  
                                noise, real_correct, fake_correct, test = True)            
             
-            self.gen_epoch(train_seeds, train_texts_hot, test = False)
-            self.gen_epoch(test_seeds,  test_texts_hot,  test = True)
+            self.gen_epoch(train_seeds, train_texts_tensor, test = False)
+            self.gen_epoch(test_seeds,  test_texts_tensor,  test = True)
             
 
             torch.cuda.synchronize()
