@@ -223,16 +223,14 @@ class Discriminator(nn.Module):
         image = (image.permute(0, -1, 1, 2) * 2) - 1
         norm = LA.norm(image, dim=(1,2,3))
         norm = self.norm_in(norm.unsqueeze(1))
+        image = self.image_in(image)
         if(self.trans):
-            image_2 = self.image_in(image)
-            image_2 = self.cnn_list[0](image_2)
+            image_2 = self.cnn_list[0](image)
             image = F.interpolate(image, scale_factor = .5, mode = "bilinear", align_corners = True, recompute_scale_factor=False)
-            image = self.image_in(image)
             image = image*trans_level + image_2*(1-trans_level)
             for cnn in self.cnn_list[1:]:
                 image = cnn(image)
         else:
-            image = self.image_in(image)
             for cnn in self.cnn_list:
                 image = cnn(image)
         image = image.flatten(1)
